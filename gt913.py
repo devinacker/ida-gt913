@@ -146,7 +146,7 @@ class gt913_processor_t(idaapi.processor_t):
 		op.addr = moredata
 	
 	def OP_rel8(self, op, data, moredata): # 8-bit PC-relative
-		op.type  = o_idpspec0
+		op.type = o_idpspec0
 		op.addr = data & 0xff
 		if (data & 0x80):
 			op.addr -= 256
@@ -503,7 +503,7 @@ class gt913_processor_t(idaapi.processor_t):
 		(0xfff1, 1, "reg_Port2DDR"),
 		(0xfff2, 1, "reg_Port1"),
 		(0xfff3, 1, "reg_Port2"),
-		(0xfff5, 1, "reg_Port3")
+		(0xfff4, 1, "reg_Port3")
 	]
 	
 	mem_vector = [
