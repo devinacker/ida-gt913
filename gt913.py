@@ -97,6 +97,10 @@ class gt913_processor_t(idaapi.processor_t):
 		op.type = o_reg
 		op.reg  = self.reg_num_8 + ((data >> 4) & 0xf)
 	
+	def OP_r8hx(self, op, data, moredata): # 8-bit register in higher bits (in next word)
+		op.type = o_reg
+		op.reg  = self.reg_num_8 + ((moredata >> 4) & 0xf)
+		
 	def OP_r8u(self, op, data, moredata): # 8-bit register in upper bits
 		op.type = o_reg
 		op.reg  = self.reg_num_8 + ((data >> 8) & 0xf)
@@ -151,10 +155,6 @@ class gt913_processor_t(idaapi.processor_t):
 		if (data & 0x80):
 			op.addr -= 256
 	
-	def OP_imm2l(self, op, data, moredata): # 2-bit immediate (for bankl)
-		op.type  = o_imm
-		op.value = data & 0x03
-	
 	def OP_imm3(self, op, data, moredata): # 3-bit immediate
 		op.type  = o_imm
 		op.value = (data >> 4) & 0x7
@@ -163,9 +163,9 @@ class gt913_processor_t(idaapi.processor_t):
 		op.type  = o_imm
 		op.value = (moredata >> 4) & 0x7
 	
-	def OP_imm4l(self, op, data, moredata): # 4-bit immediate (for bankl)
+	def OP_imm6l(self, op, data, moredata): # 6-bit immediate (for bankl/bankh)
 		op.type  = o_imm
-		op.value = data & 0x0f
+		op.value = data & 0x3f
 	
 	def OP_imm8(self, op, data, moredata): # 8-bit immediate
 		op.type  = o_imm
@@ -189,13 +189,14 @@ class gt913_processor_t(idaapi.processor_t):
 		{'opcode': 0x0100, 'mask': 0xffff, 'name': "sleep",   'op1': None,       'op2': None},
 		{'opcode': 0x0240, 'mask': 0xfff0, 'name': "stc",     'op1': OP_ccr,     'op2': OP_r8l},
 		{'opcode': 0x0340, 'mask': 0xfff0, 'name': "ldc",     'op1': OP_r8l,     'op2': OP_ccr},
-		{'opcode': 0x0380, 'mask': 0xfff0, 'name': "ldbank",  'op1': OP_r8l,     'op2': OP_bankh},
-		{'opcode': 0x03c0, 'mask': 0xfff0, 'name': "ldbank",  'op1': OP_r8l,     'op2': OP_bankl},
+		{'opcode': 0x0380, 'mask': 0xfff0, 'name': "ldbank",  'op1': OP_r8l,     'op2': OP_bankl},
+		{'opcode': 0x03c0, 'mask': 0xfff0, 'name': "ldbank",  'op1': OP_r8l,     'op2': OP_bankh},
 		{'opcode': 0x0400, 'mask': 0xff00, 'name': "orc",     'op1': OP_imm8,    'op2': OP_ccr},
 		{'opcode': 0x0500, 'mask': 0xff00, 'name': "xorc",    'op1': OP_imm8,    'op2': OP_ccr},
 		{'opcode': 0x0600, 'mask': 0xff00, 'name': "andc",    'op1': OP_imm8,    'op2': OP_ccr},
-		{'opcode': 0x0780, 'mask': 0xfff0, 'name': "ldbank",  'op1': OP_imm4l,   'op2': OP_bankh},
-		{'opcode': 0x07c0, 'mask': 0xfff0, 'name': "ldbank",  'op1': OP_imm2l,   'op2': OP_bankl},
+		{'opcode': 0x0740, 'mask': 0xffc0, 'name': "ldc",     'op1': OP_imm6l,   'op2': OP_ccr}, # maybe?
+		{'opcode': 0x0780, 'mask': 0xffc0, 'name': "ldbank",  'op1': OP_imm6l,   'op2': OP_bankl},
+		{'opcode': 0x07c0, 'mask': 0xffc0, 'name': "ldbank",  'op1': OP_imm6l,   'op2': OP_bankh}, # TODO: what are bits 4-5 for?
 		{'opcode': 0x0800, 'mask': 0xff00, 'name': "add.b",   'op1': OP_r8h,     'op2': OP_r8l},
 		{'opcode': 0x0900, 'mask': 0xff00, 'name': "add.w",   'op1': OP_r16h,    'op2': OP_r16l},
 		{'opcode': 0x0a00, 'mask': 0xfff0, 'name': "inc.b",   'op1': OP_r8l,     'op2': None},
@@ -273,7 +274,13 @@ class gt913_processor_t(idaapi.processor_t):
 		{'opcode': 0x6e00, 'mask': 0xff80, 'name': "mov.b",   'op1': OP_r16d16h, 'op2': OP_r8l},
 		{'opcode': 0x6f00, 'mask': 0xff80, 'name': "mov.w",   'op1': OP_r16d16h, 'op2': OP_r16l},
 		{'opcode': 0x7000, 'mask': 0xff00, 'name': "bset",    'op1': OP_imm3x,   'op2': OP_abs8},
+		{'opcode': 0x7100, 'mask': 0xff00, 'name': "bset",    'op1': OP_r8hx,    'op2': OP_abs8},
 		{'opcode': 0x7200, 'mask': 0xff00, 'name': "bclr",    'op1': OP_imm3x,   'op2': OP_abs8},
+		{'opcode': 0x7300, 'mask': 0xff00, 'name': "bclr",    'op1': OP_r8hx,    'op2': OP_abs8},
+		{'opcode': 0x7400, 'mask': 0xff00, 'name': "bnot",    'op1': OP_imm3x,   'op2': OP_abs8},
+		{'opcode': 0x7500, 'mask': 0xff00, 'name': "bnot",    'op1': OP_r8hx,    'op2': OP_abs8},
+		{'opcode': 0x7600, 'mask': 0xff00, 'name': "btst",    'op1': OP_imm3x,   'op2': OP_abs8},
+		{'opcode': 0x7700, 'mask': 0xff00, 'name': "btst",    'op1': OP_r8hx,    'op2': OP_abs8},
 		{'opcode': 0x7800, 'mask': 0xff80, 'name': "mov.b",   'op1': OP_r8l,     'op2': OP_r16ih},
 		{'opcode': 0x7900, 'mask': 0xff88, 'name': "mov.w",   'op1': OP_r16l,    'op2': OP_r16ih},
 		{'opcode': 0x7a00, 'mask': 0xff80, 'name': "mov.b",   'op1': OP_r8l,     'op2': OP_pr16h},
@@ -294,7 +301,7 @@ class gt913_processor_t(idaapi.processor_t):
 	]
 	
 	# operand types that indicate a 32-bit instruction
-	ops_long = (OP_abs16, OP_abs16c, OP_imm3x, OP_imm16, OP_r16d16h)
+	ops_long = (OP_abs16, OP_abs16c, OP_r8hx, OP_imm3x, OP_imm16, OP_r16d16h)
 
 	# Array of instructions
 	instruc = [
@@ -510,7 +517,7 @@ class gt913_processor_t(idaapi.processor_t):
 		(0x0000, "Reset"),
 		(0x0002, None),
 		(0x0004, None),
-		(0x0006, None),
+		(0x0006, "NMI"),
 		(0x0008, "IRQ_0"),
 		(0x000a, "IRQ_1_KeyInput"),
 		(0x000c, "IRQ_2_Timer0"),
@@ -542,7 +549,7 @@ class gt913_processor_t(idaapi.processor_t):
 			create_word(addr, 2)
 			vector = get_word(addr)
 			if vector > 0:
-				if addr >= 0x0008:
+				if addr >= 0x0006:
 					auto_make_proc(vector)
 				else:
 					auto_make_code(vector)
@@ -598,7 +605,7 @@ class gt913_processor_t(idaapi.processor_t):
 				create_data = True
 					
 		elif op.type == o_displ:
-			if op_adds_xrefs(flags, op.n) and insn.add_off_drefs(op, dr_O, OOFW_IMM | OOFS_IFSIGN) != BADADDR:
+			if op_adds_xrefs(flags, op.n) and insn.add_off_drefs(op, dr_O, OOF_ADDR | OOFW_IMM | OOFS_IFSIGN) != BADADDR:
 				create_data = True
 			# handle stack vars
 			if op.reg == self.reg_sp and may_create_stkvars() and insn.create_stkvar(op, op.addr, 0):
