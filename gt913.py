@@ -137,10 +137,6 @@ class gt913_processor_t(idaapi.processor_t):
 		op.type = o_mem
 		op.addr = 0xff00 | (data & 0xff)
 	
-	def OP_abs8c(self, op, data, moredata): # 8-bit absolute code address
-		op.type = o_near
-		op.addr = data & 0xff
-	
 	def OP_abs16(self, op, data, moredata): # 16-bit absolute data address
 		op.type = o_mem
 		op.addr = moredata
@@ -194,9 +190,9 @@ class gt913_processor_t(idaapi.processor_t):
 		{'opcode': 0x0400, 'mask': 0xff00, 'name': "orc",     'op1': OP_imm8,    'op2': OP_ccr},
 		{'opcode': 0x0500, 'mask': 0xff00, 'name': "xorc",    'op1': OP_imm8,    'op2': OP_ccr},
 		{'opcode': 0x0600, 'mask': 0xff00, 'name': "andc",    'op1': OP_imm8,    'op2': OP_ccr},
-		{'opcode': 0x0740, 'mask': 0xffc0, 'name': "ldc",     'op1': OP_imm6l,   'op2': OP_ccr}, # maybe?
+		{'opcode': 0x0740, 'mask': 0xffc0, 'name': "ldc",     'op1': OP_imm6l,   'op2': OP_ccr},
 		{'opcode': 0x0780, 'mask': 0xffc0, 'name': "ldbank",  'op1': OP_imm6l,   'op2': OP_bankl},
-		{'opcode': 0x07c0, 'mask': 0xffc0, 'name': "ldbank",  'op1': OP_imm6l,   'op2': OP_bankh}, # TODO: what are bits 4-5 for?
+		{'opcode': 0x07c0, 'mask': 0xffc0, 'name': "ldbank",  'op1': OP_imm6l,   'op2': OP_bankh},
 		{'opcode': 0x0800, 'mask': 0xff00, 'name': "add.b",   'op1': OP_r8h,     'op2': OP_r8l},
 		{'opcode': 0x0900, 'mask': 0xff00, 'name': "add.w",   'op1': OP_r16h,    'op2': OP_r16l},
 		{'opcode': 0x0a00, 'mask': 0xfff0, 'name': "inc.b",   'op1': OP_r8l,     'op2': None},
@@ -258,12 +254,18 @@ class gt913_processor_t(idaapi.processor_t):
 		{'opcode': 0x5980, 'mask': 0xffff, 'name': "rte",     'op1': None,       'op2': None},
 		{'opcode': 0x5a00, 'mask': 0xff8f, 'name': "jmp",     'op1': OP_r16h,    'op2': None},
 		{'opcode': 0x5a80, 'mask': 0xffff, 'name': "jmp",     'op1': OP_abs16c,  'op2': None},
-		{'opcode': 0x5b00, 'mask': 0xff00, 'name': "jmp",     'op1': OP_abs8c,   'op2': None},
 		{'opcode': 0x5c00, 'mask': 0xff8f, 'name': "jsr",     'op1': OP_r16h,    'op2': None},
 		{'opcode': 0x5c80, 'mask': 0xffff, 'name': "jsr",     'op1': OP_abs16c,  'op2': None},
 		{'opcode': 0x5e00, 'mask': 0xff00, 'name': "bsr",     'op1': OP_rel8,    'op2': None},
 		{'opcode': 0x5f00, 'mask': 0xfff0, 'name': "mov.w",   'op1': OP_imm16,   'op2': OP_r16l},
-		{'opcode': 0x6600, 'mask': 0xff00, 'name': "btst",    'op1': OP_imm3x,   'op2': OP_r16ih},
+		{'opcode': 0x6000, 'mask': 0xff8f, 'name': "bset",    'op1': OP_imm3x,   'op2': OP_r16ih},
+		{'opcode': 0x6100, 'mask': 0xff8f, 'name': "bset",    'op1': OP_r8hx,    'op2': OP_r16ih},
+		{'opcode': 0x6200, 'mask': 0xff8f, 'name': "bclr",    'op1': OP_imm3x,   'op2': OP_r16ih},
+		{'opcode': 0x6300, 'mask': 0xff8f, 'name': "bclr",    'op1': OP_r8hx,    'op2': OP_r16ih},
+		{'opcode': 0x6400, 'mask': 0xff8f, 'name': "bnot",    'op1': OP_imm3x,   'op2': OP_r16ih},
+		{'opcode': 0x6500, 'mask': 0xff8f, 'name': "bnot",    'op1': OP_r8hx,    'op2': OP_r16ih},
+		{'opcode': 0x6600, 'mask': 0xff8f, 'name': "btst",    'op1': OP_imm3x,   'op2': OP_r16ih},
+		{'opcode': 0x6700, 'mask': 0xff8f, 'name': "btst",    'op1': OP_r8hx,    'op2': OP_r16ih},
 		{'opcode': 0x6800, 'mask': 0xff80, 'name': "mov.b",   'op1': OP_r16ih,   'op2': OP_r8l},
 		{'opcode': 0x6900, 'mask': 0xff88, 'name': "mov.w",   'op1': OP_r16ih,   'op2': OP_r16l},
 		{'opcode': 0x6a00, 'mask': 0xff80, 'name': "mov.b",   'op1': OP_r16ph,   'op2': OP_r8l},
@@ -498,10 +500,14 @@ class gt913_processor_t(idaapi.processor_t):
 		(0xffdc, 2, "reg_Timer0Rate"),
 		(0xffdf, 1, "reg_Timer1Rate"),
 		
-		(0xffe0, 1, "reg_SerialRate"),
-		(0xffe1, 1, "reg_SerialTx"),
-		(0xffe2, 1, "reg_SerialStatus"),
-		(0xffe3, 1, "reg_SerialRx"),
+		(0xffe0, 1, "reg_Serial0Rate"),
+		(0xffe1, 1, "reg_Serial0Tx"),
+		(0xffe2, 1, "reg_Serial0Status"),
+		(0xffe3, 1, "reg_Serial0Rx"),
+		(0xffe4, 1, "reg_Serial1Rate?"), # maybe
+		(0xffe5, 1, "reg_Serial1Tx"),
+		(0xffe6, 1, "reg_Serial1Status"),
+		(0xffe7, 1, "reg_Serial1Rx"),
 
 		(0xffe9, 1, "reg_ADCStatus"),
 		(0xffea, 1, "reg_ADCData"),
@@ -510,7 +516,8 @@ class gt913_processor_t(idaapi.processor_t):
 		(0xfff1, 1, "reg_Port2DDR"),
 		(0xfff2, 1, "reg_Port1"),
 		(0xfff3, 1, "reg_Port2"),
-		(0xfff4, 1, "reg_Port3")
+		(0xfff4, 1, "reg_Port3"),
+		(0xfff5, 1, "reg_MemControl") # and something else?
 	]
 	
 	mem_vector = [
@@ -522,12 +529,12 @@ class gt913_processor_t(idaapi.processor_t):
 		(0x000a, "IRQ_1_KeyInput"),
 		(0x000c, "IRQ_2_Timer0"),
 		(0x000e, "IRQ_3_Timer1"),
-		(0x0010, "IRQ_4_SerialError"),
-		(0x0012, "IRQ_5_SerialRx"),
-		(0x0014, "IRQ_6_SerialTx"),
-		(0x0016, "IRQ_7"),
-		(0x0018, "IRQ_8"),
-		(0x001a, "IRQ_9"),
+		(0x0010, "IRQ_4_Serial0Error"),
+		(0x0012, "IRQ_5_Serial0Rx"),
+		(0x0014, "IRQ_6_Serial0Tx"),
+		(0x0016, "IRQ_7_Serial1Error"),
+		(0x0018, "IRQ_8_Serial1Rx"),
+		(0x001a, "IRQ_9_Serial1Tx"),
 		(0x001c, "IRQ_10"),
 	]
 
